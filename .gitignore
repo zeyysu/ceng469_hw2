@@ -1,0 +1,6 @@
+.DS_Store
+.vscode/
+obj/
+skybox_texture_test/
+skybox_texture_ruins/
+skybox_texture_abandoned_village/
