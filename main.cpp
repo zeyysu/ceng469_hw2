@@ -1,4 +1,3 @@
-#include <iostream>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -23,7 +22,7 @@
 
 using namespace std;
 
-int width = 800, height = 600;
+int width = 900, height = 600;
 
 GLuint skyboxvao;
 
@@ -33,8 +32,8 @@ GLuint gVertexAttribBuffer[5], gIndexBuffer[5];
 int gVertexDataSizeInBytes[5], gNormalDataSizeInBytes[5];
 unsigned int cubemapTexture, groundTexture;
 
-//0=stcubemap 1=ground 2=statue 4=car
-GLuint gProgram[5];
+//0=stcubemap 1=ground 2=statue 3=car
+GLuint gProgram[4];
 struct Vertex
 {
 	Vertex(GLfloat inX, GLfloat inY, GLfloat inZ) : x(inX), y(inY), z(inZ) { }
@@ -73,6 +72,13 @@ vector<Vertex> gVertices[5];
 vector<Texture> gTextures[5];
 vector<Normal> gNormals[5];
 vector<Face> gFaces[5];
+
+float carminX, carmaxX, carminZ, carmaxZ;
+float cameraAngle = 0;
+float carRotAngle = 0;
+glm::vec3 carPos = glm::vec3(0,0.04,0);
+float velocity = 0;
+glm::vec3 lightPosition[] = { glm::vec3(-1,1,1), glm::vec3(1,1,1), glm::vec3(0, 1,-1) };
 
 GLfloat skyboxVertices[] = {        
         -1.0f,  1.0f, -1.0f,
@@ -131,14 +137,27 @@ void drawModel(int i)
 	glDrawElements(GL_TRIANGLES, gFaces[i].size() * 3, GL_UNSIGNED_INT, 0);
 }
 
-void displayground(){
+void displayCar(glm::mat4 &viewing, glm::mat4 &perspective, glm::vec3 eyePos){
+    glUseProgram(gProgram[3]);
+    glm::mat4 scale = glm::scale(glm::mat4(1.f), glm::vec3(0.03,0.03,0.03));
+    glm::mat4 rotate = glm::rotate(glm::mat4(1.f), glm::radians(carRotAngle), glm::vec3(0, 1, 0));
+    glm::mat4 translate = glm::translate(glm::mat4(1.f), carPos);
+    glm::mat4 model = translate * rotate *  scale ;
+
+    glUniformMatrix4fv(glGetUniformLocation(gProgram[3], "viewingMatrix"), 1, GL_FALSE, glm::value_ptr(viewing));
+    glUniformMatrix4fv(glGetUniformLocation(gProgram[3], "projectionMatrix"), 1, GL_FALSE, glm::value_ptr(perspective));
+    glUniformMatrix4fv(glGetUniformLocation(gProgram[3], "modelingMatrix"), 1, GL_FALSE, glm::value_ptr(model));
+    glUniform3fv(glGetUniformLocation(gProgram[3],"lightPosition"),3, glm::value_ptr(lightPosition[0]));
+    glUniform3fv(glGetUniformLocation(gProgram[3],"eyePos"),3, glm::value_ptr(eyePos));
+    drawModel(2);
+    drawModel(3);
+    drawModel(4);
+}
+
+void displayground(glm::mat4 &viewing, glm::mat4 &perspective){
     glUseProgram(gProgram[1]);
-    glm::mat4 scale = glm::scale(glm::mat4(1.f), glm::vec3(10,10,10));
     glm::mat4 rotate = glm::rotate(glm::mat4(1.f), glm::radians(90.f), glm::vec3(1, 0, 0));
-    glm::mat4 translate = glm::translate(glm::mat4(1.f), glm::vec3(0,-0.4,0));
     glm::mat4 model = rotate;
-    glm::mat4 perspective = glm::perspective(45.0f, (GLfloat)width / (GLfloat)height, 0.001f, 100.0f);
-    glm::mat4 viewing = glm::lookAt(glm::vec3(0,0.4,0), glm::vec3(0,0,-0.9), glm::vec3(0,1,0));
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, groundTexture);
@@ -151,7 +170,7 @@ void displayground(){
     drawModel(0);
 }
 
-void displayCM(){
+void displayCM(glm::mat4 &viewing, glm::mat4 &perspective){
     glDepthFunc(GL_LEQUAL);
     glUseProgram(gProgram[0]);
 
@@ -160,8 +179,6 @@ void displayCM(){
     glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
 
     glm::mat4 model = glm::mat4(1.0f);
-    glm::mat4 perspective = glm::perspective(45.0f, (GLfloat)width / (GLfloat)height, 0.001f, 100.0f);
-    glm::mat4 viewing = glm::lookAt(glm::vec3(0,0,0), glm::vec3(0,0,-1), glm::vec3(0,1,0));
 
     glUniformMatrix4fv(glGetUniformLocation(gProgram[0], "viewingMatrix"), 1, GL_FALSE, glm::value_ptr(viewing));
     glUniformMatrix4fv(glGetUniformLocation(gProgram[0], "projectionMatrix"), 1, GL_FALSE, glm::value_ptr(perspective));
@@ -182,8 +199,16 @@ void display(){
     glClearDepth(1.0f);
     glClearStencil(0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    displayground();
-    displayCM();
+
+    glm::vec4 eyePos = glm::rotate(glm::mat4(1.f), glm::radians(cameraAngle), glm::vec3(0, 1, 0)) * glm::vec4(0,0.1,-0.3,1);
+    eyePos = glm::rotate(glm::mat4(1.f),glm::radians(carRotAngle), glm::vec3(0,1,0)) * eyePos;
+    glm::vec4 lookAt = glm::rotate(glm::mat4(1.f), glm::radians(cameraAngle), glm::vec3(0, 1, 0)) * glm::vec4(0,0,0.3,1);
+    lookAt = glm::rotate(glm::mat4(1.f),glm::radians(carRotAngle), glm::vec3(0,1,0)) * lookAt;
+    glm::mat4 viewing = glm::lookAt(glm::vec3(eyePos), glm::vec3(lookAt), glm::vec3(0,1,0));
+    glm::mat4 perspective = glm::perspective(45.0f, (GLfloat)width / (GLfloat)height, 0.001f, 100.0f);
+    displayground(viewing, perspective);
+    displayCar(viewing, perspective, glm::vec3(eyePos));
+    displayCM(viewing, perspective);
     
 
     // glClearColor(0, 0, 0, 1);
@@ -485,6 +510,12 @@ void initVBOs()
 	std::cout << "maxY = " << maxY << std::endl;
 	std::cout << "minZ = " << minZ << std::endl;
 	std::cout << "maxZ = " << maxZ << std::endl;
+    if(i == 2 || i==3 || i==4){
+        carminX = std::min(carminX, minX);
+        carminZ = std::min(carminZ, minZ);
+        carmaxX = std::max(carmaxX, maxX);
+        carmaxZ = std::max(carmaxZ, maxZ);
+    }
 
 	for (int k = 0; k < gNormals[i].size(); ++k)
 	{
@@ -689,6 +720,30 @@ void keyboard(GLFWwindow* window, int key, int scancode, int action, int mods)
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
     {
         glfwSetWindowShouldClose(window, GL_TRUE);
+    }
+    if (key == GLFW_KEY_Q && action == GLFW_PRESS)
+    {
+        cameraAngle = -90.f;
+    }
+    if (key == GLFW_KEY_E && action == GLFW_PRESS)
+    {
+        cameraAngle = 90.f;
+    }
+    if (key == GLFW_KEY_R && action == GLFW_PRESS)
+    {
+        cameraAngle = 0.f;
+    }
+    if (key == GLFW_KEY_T && action == GLFW_PRESS)
+    {
+        cameraAngle = 180.f;
+    }
+    if (key == GLFW_KEY_A && action == GLFW_PRESS)
+    {
+        carRotAngle += 2;
+    }
+    if (key == GLFW_KEY_D && action == GLFW_PRESS)
+    {
+        carRotAngle -= 2;
     }
 }
 
