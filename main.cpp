@@ -76,7 +76,7 @@ vector<Face> gFaces[5];
 float carminX, carmaxX, carminZ, carmaxZ;
 float cameraAngle = 0;
 float carRotAngle = 0;
-glm::vec3 carPos = glm::vec3(0,0.04,0);
+glm::vec3 carPos = glm::vec3(0,0.004,0);
 float velocity = 0;
 glm::vec3 lightPosition[] = { glm::vec3(-1,1,1), glm::vec3(1,1,1), glm::vec3(0, 1,-1) };
 
@@ -125,9 +125,9 @@ GLfloat skyboxVertices[] = {
 };
 
 GLfloat groundTexCoords[] = {
-    0.0f, 4.0f,
-    4.0f, 4.0f,
-    4.0f, 0.0f,
+    0.0f, 40.0f,
+    40.0f, 40.0f,
+    40.0f, 0.0f,
     0.0f, 0.0f
 };
 
@@ -139,7 +139,7 @@ void drawModel(int i)
 
 void displayCar(glm::mat4 &viewing, glm::mat4 &perspective, glm::vec3 eyePos){
     glUseProgram(gProgram[3]);
-    glm::mat4 scale = glm::scale(glm::mat4(1.f), glm::vec3(0.03,0.03,0.03));
+    glm::mat4 scale = glm::scale(glm::mat4(1.f), glm::vec3(0.003,0.003,0.003));
     glm::mat4 rotate = glm::rotate(glm::mat4(1.f), glm::radians(carRotAngle), glm::vec3(0, 1, 0));
     glm::mat4 translate = glm::translate(glm::mat4(1.f), carPos);
     glm::mat4 model = translate * rotate *  scale ;
@@ -200,15 +200,22 @@ void display(){
     glClearStencil(0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-    glm::vec4 eyePos = glm::rotate(glm::mat4(1.f), glm::radians(cameraAngle), glm::vec3(0, 1, 0)) * glm::vec4(0,0.1,-0.3,1);
-    eyePos = glm::rotate(glm::mat4(1.f),glm::radians(carRotAngle), glm::vec3(0,1,0)) * eyePos;
-    glm::vec4 lookAt = glm::rotate(glm::mat4(1.f), glm::radians(cameraAngle), glm::vec3(0, 1, 0)) * glm::vec4(0,0,0.3,1);
-    lookAt = glm::rotate(glm::mat4(1.f),glm::radians(carRotAngle), glm::vec3(0,1,0)) * lookAt;
+    glm::mat4 carRotMat = glm::rotate(glm::mat4(1.f),glm::radians(carRotAngle), glm::vec3(0,1,0));
+    glm::mat4 camRotMat =  glm::rotate(glm::mat4(1.f), glm::radians(cameraAngle), glm::vec3(0, 1, 0));
+    glm::vec4 carX = carRotMat * glm::vec4(0,0,1,0);
+    carPos = carPos + glm::vec3(velocity * carX);
+    glm::vec4 eyePos = carRotMat * camRotMat * glm::vec4(0,0.01,-0.03,1); 
+    glm::vec4 lookAt = carRotMat * camRotMat * glm::vec4(0,0,0.03,1);
     glm::mat4 viewing = glm::lookAt(glm::vec3(eyePos), glm::vec3(lookAt), glm::vec3(0,1,0));
     glm::mat4 perspective = glm::perspective(45.0f, (GLfloat)width / (GLfloat)height, 0.001f, 100.0f);
+    displayCM(viewing, perspective);
+    glm::mat4 camX = glm::translate(glm::mat4(1.f), carPos);
+    eyePos = camX * eyePos;
+    lookAt = camX * lookAt;
+    viewing = glm::lookAt(glm::vec3(eyePos), glm::vec3(lookAt), glm::vec3(0,1,0));
+
     displayground(viewing, perspective);
     displayCar(viewing, perspective, glm::vec3(eyePos));
-    displayCM(viewing, perspective);
     
 
     // glClearColor(0, 0, 0, 1);
@@ -744,6 +751,14 @@ void keyboard(GLFWwindow* window, int key, int scancode, int action, int mods)
     if (key == GLFW_KEY_D && action == GLFW_PRESS)
     {
         carRotAngle -= 2;
+    }
+    if (key == GLFW_KEY_W && action == GLFW_PRESS)
+    {
+        velocity += 0.0001;
+    }
+    if (key == GLFW_KEY_S && action == GLFW_PRESS)
+    {
+       velocity -= 0.0001;
     }
 }
 
