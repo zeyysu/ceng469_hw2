@@ -131,6 +131,13 @@ GLfloat groundTexCoords[] = {
     0.0f, 0.0f
 };
 
+glm::vec3 statueColors[] = {
+    glm::vec3(0.89, 0.73, 0.89),
+    glm::vec3(0.82, 0.57, 0.74),
+    glm::vec3(1, 0.79, 0.85),
+    glm::vec3(1,0.87, 0.83)
+};
+
 void drawModel(int i)
 {
 	glBindVertexArray(vao[i]);
@@ -148,10 +155,30 @@ void displayCar(glm::mat4 &viewing, glm::mat4 &perspective, glm::vec3 eyePos){
     glUniformMatrix4fv(glGetUniformLocation(gProgram[3], "projectionMatrix"), 1, GL_FALSE, glm::value_ptr(perspective));
     glUniformMatrix4fv(glGetUniformLocation(gProgram[3], "modelingMatrix"), 1, GL_FALSE, glm::value_ptr(model));
     glUniform3fv(glGetUniformLocation(gProgram[3],"lightPosition"),3, glm::value_ptr(lightPosition[0]));
-    glUniform3fv(glGetUniformLocation(gProgram[3],"eyePos"),3, glm::value_ptr(eyePos));
+    glUniform3fv(glGetUniformLocation(gProgram[3],"eyePos"),1, glm::value_ptr(eyePos));
     drawModel(2);
     drawModel(3);
     drawModel(4);
+}
+
+void displayStatues(glm::mat4 &viewing, glm::mat4 &perspective, glm::vec3 eyePos) {
+    glUseProgram(gProgram[2]);
+
+    glm::mat4 translate = glm::translate(glm::mat4(1.f), glm::vec3(0.21,0.01,0.21));
+    glm::mat4 scale = glm::scale(glm::mat4(1.f), glm::vec3(0.03,0.03,0.03));
+
+    glUniformMatrix4fv(glGetUniformLocation(gProgram[2], "viewingMatrix"), 1, GL_FALSE, glm::value_ptr(viewing));
+    glUniformMatrix4fv(glGetUniformLocation(gProgram[2], "projectionMatrix"), 1, GL_FALSE, glm::value_ptr(perspective));
+    glUniform3fv(glGetUniformLocation(gProgram[2],"lightPosition"),3, glm::value_ptr(lightPosition[0]));
+    glUniform3fv(glGetUniformLocation(gProgram[2],"eyePos"),1, glm::value_ptr(eyePos));
+
+    for(int i = 0; i < 4; i++){
+        glm::mat4 rotate = glm::rotate(glm::mat4(1.f), glm::radians(i*90.f), glm::vec3(0,1,0));
+        glm::mat4 model = rotate * translate * scale;
+        glUniformMatrix4fv(glGetUniformLocation(gProgram[2], "modelingMatrix"), 1, GL_FALSE, glm::value_ptr(model));
+        glUniform3fv(glGetUniformLocation(gProgram[2],"color"),1, glm::value_ptr(statueColors[i]));
+        drawModel(1);
+    }
 }
 
 void displayground(glm::mat4 &viewing, glm::mat4 &perspective){
@@ -215,40 +242,9 @@ void display(){
     viewing = glm::lookAt(glm::vec3(eyePos), glm::vec3(lookAt), glm::vec3(0,1,0));
 
     displayground(viewing, perspective);
+    displayStatues(viewing, perspective, glm::vec3(eyePos));
     displayCar(viewing, perspective, glm::vec3(eyePos));
     
-
-    // glClearColor(0, 0, 0, 1);
-    // glClearDepth(1.0f);
-    // glClearStencil(0);
-    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-    // glm::mat4 rotate = glm::rotate(glm::mat4(1.f), glm::radians(rotationAngle), glm::vec3(1, 0, 0));
-    // glm::mat4 perspective = glm::perspective(45.0f,(GLfloat)width / (GLfloat)height, 1.0f, 100.0f);
-    // glm::mat4 viewing = glm::lookAt(glm::vec3(0,0,2), glm::vec3(0,0,-1), glm::vec3(0,1,0));
-    // glm::mat4 transMat = perspective * viewing  * rotate;
-
-    // for(int i = 0; i < surfaces.size(); i++){
-    //     glm::mat4 cps = glm::make_mat4x4(surfaces[i].cps);
-
-    //     glUniform1i(glGetUniformLocation(gProgram[0], "sampleSize"),sampleSize);
-    //     glUniform1f(glGetUniformLocation(gProgram[0], "coordMultiplier"),coordMultiplier);
-
-    //     glUniform1i(glGetUniformLocation(gProgram[0], "surfaceindex"),i);
-    //     glUniform1i(glGetUniformLocation(gProgram[0], "bezierX"),horzCount/4);
-    //     glUniform1i(glGetUniformLocation(gProgram[0], "bezierY"),vertCount/4);
-
-    //     glUniformMatrix4fv(glGetUniformLocation(gProgram[0], "modelingMat"), 1, GL_FALSE, glm::value_ptr(rotate));
-    //     glUniformMatrix4fv(glGetUniformLocation(gProgram[0], "transMat"), 1, GL_FALSE, glm::value_ptr(transMat));
-    //     glUniformMatrix4fv(glGetUniformLocation(gProgram[0], "cps"), 1, GL_FALSE, glm::value_ptr(cps));
-
-    //     glUniform1i(glGetUniformLocation(gProgram[0], "lightSize"),lightSize);
-    //     glUniform3fv(glGetUniformLocation(gProgram[0],"lightPosition"),5,glm::value_ptr(lightPos[0]));
-    //     glUniform3fv(glGetUniformLocation(gProgram[0],"color"),5,glm::value_ptr(color[0]));
-    //     drawModel();
-    // }
-
-
 }
 
 void loadGroundTexture(){
@@ -325,17 +321,6 @@ void loadCubemap(){
         }
     }
 
-    // glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
-
-    // glGenSamplers(1, &sampler);
-    // glSamplerParameteri(sampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR); 
-    // glSamplerParameteri(sampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // glSamplerParameteri(sampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); 
-    // glSamplerParameteri(sampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); 
-    // glSamplerParameteri(sampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    // glBindSampler(0, sampler); 
-
-    // std::cout<<"loading ok";
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -645,38 +630,6 @@ bool ParseObj(const string& fileName, unsigned int i)
         return false;
     }
 
-	/*
-	for (int i = 0; i < gVertices.size(); ++i)
-	{
-		Vector3 n;
-		for (int j = 0; j < gFaces.size(); ++j)
-		{
-			for (int k = 0; k < 3; ++k)
-			{
-				if (gFaces[j].vIndex[k] == i)
-				{
-					// face j contains vertex i
-					Vector3 a(gVertices[gFaces[j].vIndex[0]].x, 
-							  gVertices[gFaces[j].vIndex[0]].y,
-							  gVertices[gFaces[j].vIndex[0]].z);
-					Vector3 b(gVertices[gFaces[j].vIndex[1]].x, 
-							  gVertices[gFaces[j].vIndex[1]].y,
-							  gVertices[gFaces[j].vIndex[1]].z);
-					Vector3 c(gVertices[gFaces[j].vIndex[2]].x, 
-							  gVertices[gFaces[j].vIndex[2]].y,
-							  gVertices[gFaces[j].vIndex[2]].z);
-					Vector3 ab = b - a;
-					Vector3 ac = c - a;
-					Vector3 normalFromThisFace = (ab.cross(ac)).getNormalized();
-					n += normalFromThisFace;
-				}
-			}
-		}
-		n.normalize();
-		gNormals.push_back(Normal(n.x, n.y, n.z));
-	}
-	*/
-
 	assert(gVertices[i].size() == gNormals[i].size());
 
     return true;
@@ -687,7 +640,7 @@ void init()
 {
 
     ParseObj("obj/ground.obj",0);
-    ParseObj("obj/cube.obj", 1);
+    ParseObj("obj/bunny.obj", 1);
     ParseObj("obj/cybertruck/cybertruck_body.obj",2);
     ParseObj("obj/cybertruck/cybertruck_windows.obj",3);
     ParseObj("obj/cybertruck/cybertruck_tires.obj",4);

@@ -20,7 +20,7 @@ uniform vec3 eyePos;
 void main(void)
 {
     vec3 normal = vec3(N);
-    vec3 color = Iamb * ka * color;
+    vec3 rescolor = Iamb * ka * color;
     vec3 V = normalize(eyePos - vec3(fragPos));
 
 	for(int i=0; i < 3; i++){
@@ -35,9 +35,9 @@ void main(void)
         vec3 diffuseColor = (1/r2) * I * max(0, NdotL) * color * kd;
 		vec3 specularColor = (1/r2) * I * pow(max(0, NdotH), 400) * color * ks;
 
-        color += diffuseColor + specularColor;
+        rescolor += diffuseColor + specularColor;
     }
 
 
-    FragColor = vec4(color, 1);
+    FragColor = vec4(rescolor, 1);
 }
