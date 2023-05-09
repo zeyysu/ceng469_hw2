@@ -338,7 +338,6 @@ void loadGroundTexture(){
 
 void createCubeTexture()
 {
-    std::cout<<"create cube text"<<std::endl;
     glGenFramebuffers(1, &dynamicCMFBO);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dynamicCMFBO);
     glGenTextures(1, &dynamiccubemaptexture);
