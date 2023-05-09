@@ -26,6 +26,7 @@ int width = 900, height = 600;
 
 GLuint skyboxvao;
 GLuint dynamicCMFBO;
+GLuint dynamicCMRBO;
 //0=ground 1=statue 2=ctbody 3=ctwindows 4=cttires
 GLuint vao[5];
 GLuint gVertexAttribBuffer[5], gIndexBuffer[5];
@@ -177,7 +178,7 @@ void displayCar(glm::mat4 &viewing, glm::mat4 &perspective, glm::vec3 eyePos){
 void displayStatues(glm::mat4 &viewing, glm::mat4 &perspective, glm::vec3 eyePos) {
     glUseProgram(gProgram[2]);
 
-    glm::mat4 translate = glm::translate(glm::mat4(1.f), glm::vec3(0.11,0.01,0.11));
+    glm::mat4 translate = glm::translate(glm::mat4(1.f), glm::vec3(0.16,0.01,0.16));
     glm::mat4 scale = glm::scale(glm::mat4(1.f), glm::vec3(0.025,0.025,0.025));
 
     glUniformMatrix4fv(glGetUniformLocation(gProgram[2], "viewingMatrix"), 1, GL_FALSE, glm::value_ptr(viewing));
@@ -236,18 +237,27 @@ void displayCM(glm::mat4 &viewing, glm::mat4 &perspective){
 }
 
 void createDynamicCM(){
+    glViewport(0,0,600,600);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dynamicCMFBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, dynamicCMRBO);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, dynamicCMRBO);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, dynamiccubemaptexture);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, dynamiccubemaptexture);
+    glClearColor(0, 0, 0, 1);
+    glClearDepth(1.0f);
+    glClearStencil(0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     for(int i = 0 ; i < 6 ; i++){
+        glClearDepth(1.0f);
+        glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
         glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
         GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, dynamiccubemaptexture, 0);
-
         glm::vec4 eyePos = glm::vec4(0,0,0,1);
         glm::vec3 lookAt = glm::vec3(i==0?1:i==1?-1:0, i==2?1:i==3?-1:0,i==4?1:i==5?-1:0);
         glm::vec3 up = glm::vec3(i==2?-1:i==3?1:0,(i==3||i==2)?0:-1,0);
         glm::mat4 viewing = glm::lookAt(glm::vec3(eyePos), glm::vec3(lookAt), up);
-        glm::mat4 perspective = glm::perspective(90.0f, 1.f, 0.001f, 100.0f);
+        glm::mat4 perspective = glm::perspective(glm::radians(90.f), 1.f, 0.001f, 100.0f);
         displayCM(viewing, perspective);
         glm::mat4 camX = glm::translate(glm::mat4(1.f), (carPos));
         eyePos = camX * eyePos;
@@ -273,6 +283,8 @@ void display(){
    // glTextureBarrier();
 
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glBindRenderbuffer(GL_RENDERBUFFER,0);
+    glViewport(0,0,width,height);
     glClearColor(0, 0, 0, 1);
     glClearDepth(1.0f);
     glClearStencil(0);
@@ -282,7 +294,7 @@ void display(){
     glm::vec4 eyePos = carRotMat * camRotMat * glm::vec4(0,0,0,1); 
     glm::vec4 lookAt = carRotMat * camRotMat * glm::vec4(0,0,1,1);
     glm::mat4 viewing = glm::lookAt(glm::vec3(eyePos), glm::vec3(lookAt), glm::vec3(0,1,0));
-    glm::mat4 perspective = glm::perspective(45.0f, (GLfloat)width / (GLfloat)height, 0.001f, 100.0f);
+    glm::mat4 perspective = glm::perspective(glm::radians(45.f), (GLfloat)width / (GLfloat)height, 0.001f, 100.0f);
     displayCM(viewing, perspective);
     glm::mat4 camX = glm::translate(glm::mat4(1.f), carPos);
     eyePos = carRotMat * camRotMat * glm::vec4(0,0.005,-0.03,1); 
@@ -339,7 +351,10 @@ void loadGroundTexture(){
 void createCubeTexture()
 {
     glGenFramebuffers(1, &dynamicCMFBO);
+    glGenRenderbuffers(1, &dynamicCMRBO);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dynamicCMFBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, dynamicCMRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 600,600);
     glGenTextures(1, &dynamiccubemaptexture);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, dynamiccubemaptexture);
@@ -349,13 +364,15 @@ void createCubeTexture()
     for(int i = 0; i < 6; ++i)
     {
         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA8,
-        1200, 1200, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+        600, 600, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     }
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
 }
 
 void loadCubemap(){
@@ -451,7 +468,7 @@ void createVS(GLuint& program, const string& filename)
 
     char output[1024] = {0};
     glGetShaderInfoLog(vs, 1024, &length, output);
-    printf("VS compile log: %s\n", output);
+    // printf("VS compile log: %s\n", output);
 
     glAttachShader(program, vs);
 }
@@ -475,7 +492,7 @@ void createFS(GLuint& program, const string& filename)
 
     char output[1024] = {0};
     glGetShaderInfoLog(fs, 1024, &length, output);
-    printf("FS compile log: %s\n", output);
+    // printf("FS compile log: %s\n", output);
 
     glAttachShader(program, fs);
 }
