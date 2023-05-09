@@ -25,12 +25,12 @@ using namespace std;
 int width = 900, height = 600;
 
 GLuint skyboxvao;
-
+GLuint dynamicCMFBO;
 //0=ground 1=statue 2=ctbody 3=ctwindows 4=cttires
 GLuint vao[5];
 GLuint gVertexAttribBuffer[5], gIndexBuffer[5];
 int gVertexDataSizeInBytes[5], gNormalDataSizeInBytes[5];
-unsigned int cubemapTexture, groundTexture;
+unsigned int cubemapTexture, groundTexture, dynamiccubemaptexture;
 
 //0=stcubemap 1=ground 2=statue 3=car
 GLuint gProgram[4];
@@ -132,10 +132,14 @@ GLfloat groundTexCoords[] = {
 };
 
 glm::vec3 statueColors[] = {
-    glm::vec3(0.89, 0.73, 0.89),
+    glm::vec3(0.58, 0.49, 0.68),
     glm::vec3(0.82, 0.57, 0.74),
     glm::vec3(1, 0.79, 0.85),
-    glm::vec3(1,0.87, 0.83)
+    glm::vec3(1,0.87, 0.83),
+    glm::vec3(1,0.7,0.74),
+    glm::vec3(1,0.87,0.73),
+    glm::vec3(1,1,0.73),
+    glm::vec3(0.73,1,1)
 };
 
 void drawModel(int i)
@@ -150,30 +154,39 @@ void displayCar(glm::mat4 &viewing, glm::mat4 &perspective, glm::vec3 eyePos){
     glm::mat4 rotate = glm::rotate(glm::mat4(1.f), glm::radians(carRotAngle), glm::vec3(0, 1, 0));
     glm::mat4 translate = glm::translate(glm::mat4(1.f), carPos);
     glm::mat4 model = translate * rotate *  scale ;
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, dynamiccubemaptexture);
 
     glUniformMatrix4fv(glGetUniformLocation(gProgram[3], "viewingMatrix"), 1, GL_FALSE, glm::value_ptr(viewing));
     glUniformMatrix4fv(glGetUniformLocation(gProgram[3], "projectionMatrix"), 1, GL_FALSE, glm::value_ptr(perspective));
     glUniformMatrix4fv(glGetUniformLocation(gProgram[3], "modelingMatrix"), 1, GL_FALSE, glm::value_ptr(model));
     glUniform3fv(glGetUniformLocation(gProgram[3],"lightPosition"),3, glm::value_ptr(lightPosition[0]));
     glUniform3fv(glGetUniformLocation(gProgram[3],"eyePos"),1, glm::value_ptr(eyePos));
+    glUniform1i( glGetUniformLocation(gProgram[3], "sampler"), 0);
+    glUniform3fv(glGetUniformLocation(gProgram[3],"color"),1, glm::value_ptr(glm::vec3(1,0.75,0.8)));
+    glUniform1f(glGetUniformLocation(gProgram[3], "reflectFactor"), 0.1);
     drawModel(2);
+    glUniform3fv(glGetUniformLocation(gProgram[3],"color"),1, glm::value_ptr(glm::vec3(0.75,1,0.8)));
+    glUniform1f(glGetUniformLocation(gProgram[3], "reflectFactor"), 0.90);
     drawModel(3);
+    glUniform3fv(glGetUniformLocation(gProgram[3],"color"),1, glm::value_ptr(glm::vec3(0.2,0.2,0.2)));
+    glUniform1f(glGetUniformLocation(gProgram[3], "reflectFactor"), 0.f);
     drawModel(4);
 }
 
 void displayStatues(glm::mat4 &viewing, glm::mat4 &perspective, glm::vec3 eyePos) {
     glUseProgram(gProgram[2]);
 
-    glm::mat4 translate = glm::translate(glm::mat4(1.f), glm::vec3(0.21,0.01,0.21));
-    glm::mat4 scale = glm::scale(glm::mat4(1.f), glm::vec3(0.03,0.03,0.03));
+    glm::mat4 translate = glm::translate(glm::mat4(1.f), glm::vec3(0.11,0.01,0.11));
+    glm::mat4 scale = glm::scale(glm::mat4(1.f), glm::vec3(0.025,0.025,0.025));
 
     glUniformMatrix4fv(glGetUniformLocation(gProgram[2], "viewingMatrix"), 1, GL_FALSE, glm::value_ptr(viewing));
     glUniformMatrix4fv(glGetUniformLocation(gProgram[2], "projectionMatrix"), 1, GL_FALSE, glm::value_ptr(perspective));
     glUniform3fv(glGetUniformLocation(gProgram[2],"lightPosition"),3, glm::value_ptr(lightPosition[0]));
     glUniform3fv(glGetUniformLocation(gProgram[2],"eyePos"),1, glm::value_ptr(eyePos));
 
-    for(int i = 0; i < 4; i++){
-        glm::mat4 rotate = glm::rotate(glm::mat4(1.f), glm::radians(i*90.f), glm::vec3(0,1,0));
+    for(int i = 0; i < 8; i++){
+        glm::mat4 rotate = glm::rotate(glm::mat4(1.f), glm::radians(i*45.f), glm::vec3(0,1,0));
         glm::mat4 model = rotate * translate * scale;
         glUniformMatrix4fv(glGetUniformLocation(gProgram[2], "modelingMatrix"), 1, GL_FALSE, glm::value_ptr(model));
         glUniform3fv(glGetUniformLocation(gProgram[2],"color"),1, glm::value_ptr(statueColors[i]));
@@ -187,18 +200,19 @@ void displayground(glm::mat4 &viewing, glm::mat4 &perspective){
     glm::mat4 model = rotate;
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, groundTexture);
+    glBindTexture(GL_TEXTURE_2D, groundTexture);
 
     glUniformMatrix4fv(glGetUniformLocation(gProgram[1], "viewingMatrix"), 1, GL_FALSE, glm::value_ptr(viewing));
     glUniformMatrix4fv(glGetUniformLocation(gProgram[1], "projectionMatrix"), 1, GL_FALSE, glm::value_ptr(perspective));
     glUniformMatrix4fv(glGetUniformLocation(gProgram[1], "modelingMatrix"), 1, GL_FALSE, glm::value_ptr(model));
-    glUniform1i( glGetUniformLocation(gProgram[0], "texture0"), 0);
+    glUniform1i( glGetUniformLocation(gProgram[1], "texture0"), 0);
 
     drawModel(0);
 }
 
 void displayCM(glm::mat4 &viewing, glm::mat4 &perspective){
     glDepthFunc(GL_LEQUAL);
+    glDisable(GL_DEPTH_TEST);
     glUseProgram(gProgram[0]);
 
     glBindVertexArray(skyboxvao);
@@ -216,8 +230,31 @@ void displayCM(glm::mat4 &viewing, glm::mat4 &perspective){
 
 	glDrawArrays(GL_TRIANGLES, 0, 36);
     glBindVertexArray(0);
+    glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
     
+}
+
+void createDynamicCM(){
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dynamicCMFBO);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, dynamiccubemaptexture);
+    for(int i = 0 ; i < 6 ; i++){
+        glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+        GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, dynamiccubemaptexture, 0);
+
+        glm::vec4 eyePos = glm::vec4(0,0,0,1);
+        glm::vec3 lookAt = glm::vec3(i==0?1:i==1?-1:0, i==2?1:i==3?-1:0,i==4?1:i==5?-1:0);
+        glm::vec3 up = glm::vec3(i==2?-1:i==3?1:0,(i==3||i==2)?0:-1,0);
+        glm::mat4 viewing = glm::lookAt(glm::vec3(eyePos), glm::vec3(lookAt), up);
+        glm::mat4 perspective = glm::perspective(90.0f, 1.f, 0.001f, 100.0f);
+        displayCM(viewing, perspective);
+        glm::mat4 camX = glm::translate(glm::mat4(1.f), (carPos));
+        eyePos = camX * eyePos;
+        viewing = glm::lookAt(glm::vec3(eyePos), glm::vec3(lookAt),up);
+        displayground(viewing, perspective);
+        displayStatues(viewing, perspective, glm::vec3(eyePos));
+    }
 }
 
 void display(){
@@ -228,15 +265,28 @@ void display(){
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     glm::mat4 carRotMat = glm::rotate(glm::mat4(1.f),glm::radians(carRotAngle), glm::vec3(0,1,0));
-    glm::mat4 camRotMat =  glm::rotate(glm::mat4(1.f), glm::radians(cameraAngle), glm::vec3(0, 1, 0));
     glm::vec4 carX = carRotMat * glm::vec4(0,0,1,0);
     carPos = carPos + glm::vec3(velocity * carX);
-    glm::vec4 eyePos = carRotMat * camRotMat * glm::vec4(0,0.01,-0.03,1); 
-    glm::vec4 lookAt = carRotMat * camRotMat * glm::vec4(0,0,0.03,1);
+
+    //dynamic CM,
+    createDynamicCM();
+   // glTextureBarrier();
+
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glClearColor(0, 0, 0, 1);
+    glClearDepth(1.0f);
+    glClearStencil(0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    glm::mat4 camRotMat =  glm::rotate(glm::mat4(1.f), glm::radians(cameraAngle), glm::vec3(0, 1, 0));
+    glm::vec4 eyePos = carRotMat * camRotMat * glm::vec4(0,0,0,1); 
+    glm::vec4 lookAt = carRotMat * camRotMat * glm::vec4(0,0,1,1);
     glm::mat4 viewing = glm::lookAt(glm::vec3(eyePos), glm::vec3(lookAt), glm::vec3(0,1,0));
     glm::mat4 perspective = glm::perspective(45.0f, (GLfloat)width / (GLfloat)height, 0.001f, 100.0f);
     displayCM(viewing, perspective);
     glm::mat4 camX = glm::translate(glm::mat4(1.f), carPos);
+    eyePos = carRotMat * camRotMat * glm::vec4(0,0.005,-0.03,1); 
+    lookAt = carRotMat * camRotMat * glm::vec4(0,0,0.03,1);
     eyePos = camX * eyePos;
     lookAt = camX * lookAt;
     viewing = glm::lookAt(glm::vec3(eyePos), glm::vec3(lookAt), glm::vec3(0,1,0));
@@ -286,6 +336,28 @@ void loadGroundTexture(){
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, NULL);
 }
 
+void createCubeTexture()
+{
+    std::cout<<"create cube text"<<std::endl;
+    glGenFramebuffers(1, &dynamicCMFBO);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dynamicCMFBO);
+    glGenTextures(1, &dynamiccubemaptexture);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, dynamiccubemaptexture);
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+    for(int i = 0; i < 6; ++i)
+    {
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA8,
+        1200, 1200, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+}
 
 void loadCubemap(){
 
@@ -293,12 +365,12 @@ void loadCubemap(){
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
 
-    const char* images[] = {"skybox_texture_ruins/right.png",
-        "skybox_texture_ruins/left.png",
-        "skybox_texture_ruins/top.png",
-        "skybox_texture_ruins/bottom.png",
-        "skybox_texture_ruins/front.png",
-        "skybox_texture_ruins/back.png"
+    const char* images[] = {"skybox_texture_abandoned_village/right.png",
+        "skybox_texture_abandoned_village/left.png",
+        "skybox_texture_abandoned_village/top.png",
+        "skybox_texture_abandoned_village/bottom.png",
+        "skybox_texture_abandoned_village/front.png",
+        "skybox_texture_abandoned_village/back.png"
     };
 
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -496,12 +568,6 @@ void initVBOs()
 		maxZ = std::max(maxZ, gVertices[i][k].z);
 	}
 
-	std::cout << "minX = " << minX << std::endl;
-	std::cout << "maxX = " << maxX << std::endl;
-	std::cout << "minY = " << minY << std::endl;
-	std::cout << "maxY = " << maxY << std::endl;
-	std::cout << "minZ = " << minZ << std::endl;
-	std::cout << "maxZ = " << maxZ << std::endl;
     if(i == 2 || i==3 || i==4){
         carminX = std::min(carminX, minX);
         carminZ = std::min(carminZ, minZ);
@@ -641,6 +707,7 @@ void init()
 
     ParseObj("obj/ground.obj",0);
     ParseObj("obj/bunny.obj", 1);
+    // ParseObj("obj/cube.obj",2);
     ParseObj("obj/cybertruck/cybertruck_body.obj",2);
     ParseObj("obj/cybertruck/cybertruck_windows.obj",3);
     ParseObj("obj/cybertruck/cybertruck_tires.obj",4);
@@ -650,6 +717,7 @@ void init()
     loadCubemap();
     loadGroundTexture();
     initShaders();
+    createCubeTexture();
 }
 
 
@@ -660,7 +728,6 @@ void reshape(GLFWwindow* window, int w, int h)
 
     width = w;
     height = h;
-
     glViewport(0, 0, w, h);
 }
 

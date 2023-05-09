@@ -4,8 +4,7 @@ in vec4 fragPos;
 in vec4 N;
 out vec4 FragColor;
 
-in vec2 TexCoords;
-uniform sampler2D texture0;
+uniform samplerCube sampler;
 
 vec3 kd = vec3(0.8, 0.8, 0.8);
 vec3 ka = vec3(0.3, 0.3, 0.3);
@@ -15,15 +14,15 @@ vec3 I = vec3(2, 2, 2);
 
 vec3 Iamb = vec3(0.8, 0.8, 0.8);
 
-vec3 color = vec3(1,0.75,0.8);
-
 uniform vec3 lightPosition[3];
 uniform vec3 eyePos;
+uniform vec3 color;
+uniform float reflectFactor;
 
 
 void main()
 {    
-    // fragColor = texture(texture0, TexCoords);
+    
     vec3 normal = vec3(N);
     vec3 color = Iamb * ka * color;
     vec3 V = normalize(eyePos - vec3(fragPos));
@@ -43,5 +42,9 @@ void main()
         color += diffuseColor + specularColor;
     }
 
-    FragColor = vec4(color, 1);
+    vec3 I = normalize(vec3(fragPos) - eyePos);
+    vec3 R = reflect(I, normal);
+    FragColor = reflectFactor * texture(sampler, R) + (1-reflectFactor)*vec4(color, 1); 
+
+   // FragColor = vec4(color, 1);
 }
