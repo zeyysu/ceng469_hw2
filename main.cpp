@@ -236,9 +236,10 @@ void displayCM(glm::mat4 &viewing, glm::mat4 &perspective){
 }
 
 void createDynamicCM(){
+    glViewport(0,0,1200,1200);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dynamicCMFBO);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, dynamiccubemaptexture);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, dynamiccubemaptexture);
     for(int i = 0 ; i < 6 ; i++){
         glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
         GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, dynamiccubemaptexture, 0);
@@ -271,6 +272,8 @@ void display(){
     //dynamic CM,
     createDynamicCM();
    // glTextureBarrier();
+
+    glViewport(0,0,width,height);
 
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glClearColor(0, 0, 0, 1);
@@ -451,7 +454,7 @@ void createVS(GLuint& program, const string& filename)
 
     char output[1024] = {0};
     glGetShaderInfoLog(vs, 1024, &length, output);
-    printf("VS compile log: %s\n", output);
+    // printf("VS compile log: %s\n", output);
 
     glAttachShader(program, vs);
 }
@@ -475,7 +478,7 @@ void createFS(GLuint& program, const string& filename)
 
     char output[1024] = {0};
     glGetShaderInfoLog(fs, 1024, &length, output);
-    printf("FS compile log: %s\n", output);
+    // printf("FS compile log: %s\n", output);
 
     glAttachShader(program, fs);
 }
